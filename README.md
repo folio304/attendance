@@ -15,18 +15,20 @@ Two files matter: **`index.html`** (the page) and **`Code.gs`** (the Apps Script
    of `Code.gs`, and save.
 3. In the function dropdown pick **`setup`** and click **Run**. Approve the
    permissions prompt (it needs your Sheet and Gmail).
-4. Open **View → Logs** (or the Execution log). Copy the `API_TOKEN` line — that
-   long string is your access key. Keep it.
    You'll now see four tabs in the Sheet: `Attendance`, `Employees`, `EmailLog`,
-   `Holidays`.
-5. **Deploy → New deployment → Web app**:
+   `Holidays`. The access key is already baked in at the top of `Code.gs`.
+4. **Deploy → New deployment → Web app**:
    - Description: `attendance v1`
    - Execute as: **Me**
    - Who has access: **Anyone**
-   - Click Deploy, approve again, and copy the **Web app URL** (ends in `/exec`).
+   - Click Deploy, approve again. The URL should match the one already in
+     `index.html`. If it differs, paste the new one into `API_URL` near the top
+     of the `<script>` block and commit.
 
 > "Anyone" is required because the page calls it without a Google login. The
-> access key from step 4 is what actually protects it — treat it like a password.
+> access key is what protects it. Since both the URL and the key are written
+> into `index.html`, **keep the repository private** — anyone who reads the
+> source can send email as you and read your attendance data.
 
 ---
 
@@ -44,18 +46,19 @@ Two files matter: **`index.html`** (the page) and **`Code.gs`** (the Apps Script
 
 ## Part 3 — First run
 
-1. Open the page → **Settings**.
-2. Paste the Web app URL and the access key. Set the summary email address.
-   Late cut-off is pre-filled at `10:06`.
-3. Click **Test connection**. It should report the employee count and your
-   remaining Gmail quota.
-4. Go to **Employees** and add each person: code, name, email. **The code must
+The page opens on **Day register** for today's date every time.
+
+1. Go to **Employees** and add each person: code, name, email. **The code must
    match the EMP Code your machine prints** — 7, 9, 10, 11, 15, 18, 20, 21, 24,
-   27, 28, 35, 36 in the file you sent.
-5. Click **Save employee list**.
-6. Go to **Upload today's file**, drop the `.xls`, review the preview, then
-   **Save to Google Sheet**.
-7. **Day register** → pick the date → **Send emails**.
+   27, 28, 35, 36 in the file you sent. Then **Save employee list**.
+2. Go to **Settings** and enter the three manager email addresses. Confirm the
+   late cut-off reads `10:06`. Then **Save settings**.
+3. Go to **Upload file**, drop the `.xls`, review the preview, then **Save to
+   Google Sheet**. The page jumps back to the register.
+4. Check the register, then **Send emails**.
+
+Managers and the cut-off are stored in the Google Sheet's script properties, not
+in your browser, so all three managers and any device see the same values.
 
 ---
 
@@ -102,11 +105,14 @@ Anyone in the file but missing from your list shows a "not in list" badge.
 ## Staying inside the free-Gmail limits
 
 A free `@gmail.com` account allows **100 email recipients per day** through Apps
-Script. With 13 staff the worst possible day uses 14. Comfortable.
+Script. With 13 staff and 3 managers the worst possible day uses 16. Comfortable.
 
 The rest of the design keeps other quotas quiet:
 
+- Page load = **one** request. Employees, dates, holidays, settings and today's
+  register all come back together.
 - One upload = **one** request carrying the whole day, not one per employee.
+- The three manager summaries go out in a single `sendEmail` call.
 - Writes use a single `setValues()` call rather than `appendRow()` in a loop.
 - The employee list is cached in `CacheService` for 15 minutes.
 - Page load fetches employees, stored dates and holidays in **one** call.
@@ -130,8 +136,9 @@ today. The quota resets around 12:30 PM IST (midnight Pacific).
   word and I'll add one.
 - **Removing an employee** only removes them from the master list. Their past
   attendance rows stay in the Sheet.
-- **The access key lives in browser storage.** Anyone who can open the page and
-  has the key can send email as you. Don't publish the key in the repository.
+- **The URL and access key are hardcoded in `index.html`.** Keep the repository
+  private. If the key ever leaks, change `FIXED_TOKEN` in `Code.gs`, re-run
+  `setup`, redeploy, and update `API_TOKEN` in `index.html`.
 - **If you edit `Code.gs` later**, you must **Deploy → Manage deployments →
   Edit → Version: New version** for the change to reach the live URL.
 
@@ -141,8 +148,8 @@ today. The quota resets around 12:30 PM IST (midnight Pacific).
 
 | Symptom | Cause |
 |---|---|
-| "Wrong access key" | Token mismatch, or you redeployed and generated a new one. Re-run `setup` and check the log. |
-| "Failed to fetch" | The deployment isn't set to *Anyone*, or the URL is missing `/exec`. |
+| "Access key rejected" | Run `setup` again in Apps Script, then redeploy a new version. |
+| "Could not reach the Apps Script" | The deployment isn't set to *Anyone*, or `API_URL` in `index.html` is stale after a redeploy. |
 | "Could not find the report date" | Wrong export type. You need *Date wise Daily Attendance Report (Detailed)*. |
 | Everyone shows Absent | Employee codes don't match the machine's EMP Code. |
 | Emails skipped | Already sent for that date — check the `EmailLog` tab. |
