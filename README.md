@@ -4,7 +4,18 @@ A GitHub Pages page that reads the daily Secureye biometric export, pushes the
 punches to one Google Sheet, shows a date-wise register, and emails late and
 absent staff through Apps Script.
 
-Two files matter: **`index.html`** (the page) and **`Code.gs`** (the Apps Script).
+Files in the repository:
+
+| File | Purpose |
+|---|---|
+| `index.html` | The page. Connection details are hardcoded near the top of the `<script>` block. |
+| `Code.gs` | The Apps Script. Paste into the Sheet's script editor. |
+| `manifest.webmanifest` | Makes it installable as an app. |
+| `sw.js` | Service worker — offline shell and update prompt. |
+| `icons/` | App icons. |
+
+Everything except `Code.gs` goes in the repository root, with `icons/` as a
+subfolder.
 
 ---
 
@@ -36,11 +47,31 @@ Two files matter: **`index.html`** (the page) and **`Code.gs`** (the Apps Script
 
 1. Create a repository, e.g. `bda-attendance`. Public or private both work
    (private needs a paid GitHub plan for Pages).
-2. Upload `index.html` to the repository root.
+2. Upload `index.html`, `manifest.webmanifest`, `sw.js` and the `icons/` folder
+   to the repository root.
 3. **Settings → Pages → Source: Deploy from a branch**, branch `main`, folder
    `/ (root)`. Save.
 4. After a minute the page is live at
    `https://<your-username>.github.io/bda-attendance/`.
+
+### Installing it as an app
+
+GitHub Pages serves over HTTPS, which is all a PWA needs.
+
+- **Android / Chrome:** open the page, menu → *Add to Home screen* (or the
+  install prompt in the address bar).
+- **iPhone / Safari:** Share → *Add to Home Screen*. It must be Safari; Chrome
+  on iOS can't install.
+- **Windows / Mac desktop:** the install icon at the right of the Chrome or Edge
+  address bar.
+
+Installed, it opens without browser chrome and keeps working offline for
+*viewing* the last loaded register. Uploading and sending email need a
+connection — an amber bar appears across the top when there isn't one.
+
+**Whenever you change `index.html`, bump `CACHE_VERSION` in `sw.js`** (v1 → v2).
+Installed copies show a "newer version is ready" bar with a reload button; skip
+the bump and people may sit on the old page for days.
 
 ---
 
@@ -90,11 +121,14 @@ shift hours, OT and the rest are dropped.
 
 | Status | Meaning |
 |---|---|
-| **Present** | Punched in at or before the cut-off, and punched out. |
+| **Present** | Punched in at or before the cut-off. The out-punch is not required — you export mid-day, so most people haven't left yet. |
 | **Late** | Punched in after 10:06. Minutes over are shown and quoted in the email. |
-| **Missing out-punch** | Punched in on time but never punched out. Flagged in the register, **no email sent** — this is usually just the export being taken before closing time. |
 | **Absent** | On the employee list, marked active, no punch at all. |
 | **Off day** | Sunday or a listed holiday. Nobody is marked absent, nothing is emailed. |
+
+The register still counts how many people had no out-punch at export time — it's
+the fourth figure in the tally strip, and a line in the manager summary. It
+never affects anybody's status and never triggers an email.
 
 The biometric file **only contains people who punched**. That's why the employee
 list is not optional — absence is derived by comparing the file against it.
@@ -152,4 +186,6 @@ today. The quota resets around 12:30 PM IST (midnight Pacific).
 | "Could not reach the Apps Script" | The deployment isn't set to *Anyone*, or `API_URL` in `index.html` is stale after a redeploy. |
 | "Could not find the report date" | Wrong export type. You need *Date wise Daily Attendance Report (Detailed)*. |
 | Everyone shows Absent | Employee codes don't match the machine's EMP Code. |
+| Page won't install | Not HTTPS, or `manifest.webmanifest` and `icons/` weren't uploaded. |
+| Old version keeps loading | `CACHE_VERSION` in `sw.js` wasn't bumped after editing `index.html`. |
 | Emails skipped | Already sent for that date — check the `EmailLog` tab. |
